@@ -4,13 +4,19 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"path/filepath"
+	"strings"
 )
 
-// location of well known files, from 24-ECIPURI
+// well known constants from 24-ECIPURI
 const (
 	SpecsFile      = ".well-known/ecips/specs.json"
 	RegistriesFile = ".well-known/ecips/known.json"
 )
+
+// own consts
+const ()
 
 // Spec is the meta data of Specification from 24-ECIPURI
 type Spec struct {
@@ -27,27 +33,50 @@ func main() {
 }
 
 func processRegistry(uri string) {
+	var reader func(string) ([]byte, error)
+	// TODO: add git and IPFS support
+	switch {
+	case strings.HasPrefix(uri, "http"): // match both http and https
+		reader = func(suffix string) ([]byte, error) {
+			resp, err := http.Get(uri + "/" + suffix)
+			if err != nil {
+				return nil, err
+			}
+			defer resp.Body.Close()
+			return ioutil.ReadAll(resp.Body)
+		}
+	default: // assume file
+		reader = func(suffix string) ([]byte, error) {
+			path := filepath.Join(uri, suffix)
+			return ioutil.ReadFile(path)
+		}
+	}
 	var specs []Spec
 	var registries []string
 	var err error
 
-	err = parseFile(SpecsFile, &specs)
+	log.Println("Processing registry:", uri)
+	err = parseFile(reader, SpecsFile, &specs)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
-	err = parseFile(RegistriesFile, &registries)
+	err = parseFile(reader, RegistriesFile, &registries)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
-	log.Println("Registry:", uri)
 	log.Println("  specs:", len(specs))
 	log.Println("  registries:", len(registries))
+
+	for _, registry := range registries {
+		log.Println("->", registry)
+		processRegistry(registry)
+	}
 }
 
-func parseFile(fileName string, object interface{}) error {
-	jsonData, err := ioutil.ReadFile(fileName)
+func parseFile(reader func(string) ([]byte, error), fileName string, object interface{}) error {
+	jsonData, err := reader(fileName)
 	if err != nil {
 		return err
 	}
