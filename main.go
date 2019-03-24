@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // well known constants from 24-ECIPURI
@@ -16,7 +17,11 @@ const (
 )
 
 // own consts
-const ()
+const (
+	CaveDir      = "archive"
+	HuntersNum   = 5
+	GatherersNum = 10
+)
 
 // Spec is the meta data of Specification from 24-ECIPURI
 type Spec struct {
@@ -28,8 +33,69 @@ type Spec struct {
 	CreatedAt     string `json:createdAt`     // Date when the specification was created.
 }
 
+// hunter is a channel for registries locations
+var hunter chan string
+
+// gaterer is a channel for specs to be collected
+var gatherer chan Spec
+
+var stop chan struct{}
+
+var wg sync.WaitGroup
+
 func main() {
-	processRegistry(".")
+	hunter = make(chan string)
+	gatherer = make(chan Spec)
+	stop = make(chan struct{})
+
+	start()
+}
+
+func start() {
+	for i := 0; i < GatherersNum; i++ {
+		fmt.Println("g", len(gatherer))
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case spec := <-gatherer:
+					processSpec(spec)
+				case <-stop:
+					break
+				default:
+				}
+			}
+			wg.Done()
+			fmt.Println("Gatherer done", i)
+		}()
+	}
+
+	for i := 0; i < HuntersNum; i++ {
+		fmt.Println("h", len(hunter))
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case uri := <-hunter:
+					processRegistry(uri)
+				case <-stop:
+					break
+				default:
+				}
+			}
+			wg.Done()
+			fmt.Println("Gatherer done")
+		}()
+	}
+
+	hunter <- "."
+
+	wg.Wait()
+}
+
+func processSpec(spec Spec) {
+	// TODO: archive file
+	fmt.Println("%+v", spec)
 }
 
 func processRegistry(uri string) {
@@ -55,23 +121,27 @@ func processRegistry(uri string) {
 	var registries []string
 	var err error
 
-	log.Println("Processing registry:", uri)
+	fmt.Println("Processing registry:", uri)
 	err = parseFile(reader, SpecsFile, &specs)
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 	}
 
 	err = parseFile(reader, RegistriesFile, &registries)
 	if err != nil {
-		log.Println(err)
+		fmt.Println(err)
 	}
 
-	log.Println("  specs:", len(specs))
-	log.Println("  registries:", len(registries))
+	fmt.Println("  specs:", len(specs))
+	fmt.Println("  registries:", len(registries))
+
+	for _, spec := range specs {
+		gatherer <- spec
+	}
 
 	for _, registry := range registries {
-		log.Println("->", registry)
-		processRegistry(registry)
+		fmt.Println("->", registry)
+		hunter <- registry
 	}
 }
 
