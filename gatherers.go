@@ -62,6 +62,7 @@ func (g *gatherers) gatherer(n uint) {
 
 func (g *gatherers) processSpec(spec ecipuri.Spec) {
 	fmt.Println("Processing spec:", spec.URI)
+	// TODO: find a library to get page + all assets (CSS, images, etc)
 	resp, err := http.Get(spec.DocumentURL)
 	if err != nil {
 		fmt.Println(err)
