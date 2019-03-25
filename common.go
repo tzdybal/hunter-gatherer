@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	caveDir       = "archive"
+	archiveDir    = "archive"
 	huntersNum    = 10
 	gatherersNum  = 50
 	defaultSearch = "."

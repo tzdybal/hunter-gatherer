@@ -71,13 +71,13 @@ func (g *gatherers) processSpec(spec ecipuri.Spec) {
 
 	// TODO: add some extra protection
 	dir, file := filepath.Split(spec.URI)
-	err = os.MkdirAll(filepath.Join(caveDir, dir), 0755)
+	err = os.MkdirAll(filepath.Join(archiveDir, dir), 0755)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	output, err := os.Create(filepath.Join(caveDir, dir, file) + ".html")
+	output, err := os.Create(filepath.Join(archiveDir, dir, file) + ".html")
 	if err != nil {
 		fmt.Println(err)
 	}

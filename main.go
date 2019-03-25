@@ -11,4 +11,6 @@ func main() {
 	g.send(gatherersNum)
 
 	waitForParties(h, g)
+
+	git()
 }
